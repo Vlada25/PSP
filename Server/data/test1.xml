@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system>
+    <coefficients>2 -1 0 -1 2 -1
+ 0 -1 2</coefficients>
+    <constants>1 2 3</constants>
+</system>

@@ -1,0 +1,46 @@
+﻿@page "/matrix-generation"
+@using global::Shared.Models;
+@inject HttpClient httpClient
+@inject IJSRuntime jsRuntime
+
+<PageTitle>Matrix</PageTitle>
+
+<MudInput @bind-Value=size Placeholder="Enter size" Required RequiredError="Size is required" Immediate />
+<br />
+<MudButton Variant=Variant.Outlined OnClick=@(() => GenerateRandomMatrix(false)) Class="mt-2" Disabled=loading>
+    Generate random matrix
+</MudButton>
+<br />
+<MudButton Variant=Variant.Outlined OnClick=@(() => GenerateRandomMatrix(true)) Class="mt-2" Disabled=loading>
+    Generate random positive defined matrix
+</MudButton>
+
+@if (loading)
+{
+   <MudText Class="mt-2">Loading...</MudText>
+}
+
+ @code {
+    private int? size;
+    private bool loading;
+
+    private async Task GenerateRandomMatrix(bool isPositiveDefined)
+    {
+        if (size is null || size == 0)
+        {
+            return;
+        }
+
+        loading = true;
+
+        var response = await httpClient.GetAsync($"linear-system/random{(isPositiveDefined ? "/positive" : string.Empty)}?size={size}");
+
+        loading = false;
+
+        if (response.IsSuccessStatusCode)
+        {
+            var xmlString = await response.Content.ReadAsStringAsync();
+            await jsRuntime.InvokeVoidAsync("downloadFile", xmlString, Guid.NewGuid().ToString());
+        }
+    }
+}

@@ -1,0 +1,75 @@
+﻿@page "/"
+@using global::Shared.Models;
+@inject HttpClient httpClient
+
+<PageTitle>Index</PageTitle>
+
+<MudFileUpload T="IBrowserFile" OnFilesChanged="UploadFile">
+    <ButtonTemplate>
+        <MudButton HtmlTag="label"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                   Disabled=loading
+                   for="@context">
+            Upload File
+        </MudButton>
+    </ButtonTemplate>
+</MudFileUpload>
+
+@if (result is not null)
+{
+    <p></p>
+    @for (int i = 0; i < result.Constants.Count; i++)
+    {
+        for (int j = 0; j < result.Coefficients[i].Count; j++)
+        {
+            <span>@($"{result.Coefficients[i][j]} ")</span>
+        }
+
+        @("| " + result.Constants[i])
+        <br />
+    }
+
+    <p class="mt-2">
+        <b>Cholesky result:</b> @result.CholeskyResult
+        <br>
+        <b>Gauss result:</b> @result.GaussResult
+    </p>
+}
+
+@if (loading)
+{
+    <MudText Class="mt-2">Loading...</MudText>
+}
+
+@code {
+    private LinearSystemResult? result;
+    private bool loading;
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        if (e.File.ContentType != "text/xml")
+        {
+            return;
+        }
+
+        using (var content = new MultipartFormDataContent())
+        {
+            var contentType = e.File.ContentType;
+            content.Add(new StreamContent(e.File.OpenReadStream()), "file", e.File.Name);
+
+            loading = true;
+            result = null;
+
+            var response = await httpClient.PostAsync("linear-system/solve", content);
+
+            loading = false;
+
+            if (response.IsSuccessStatusCode)
+            {
+                result = await response.Content.ReadFromJsonAsync<LinearSystemResult>();
+            }
+        }
+    }
+}
