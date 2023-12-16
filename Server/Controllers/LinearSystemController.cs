@@ -1,24 +1,24 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Mvc;
 using Server.Helpers;
 using Shared.Models;
-using System.IO;
-using System.Xml;
 
 namespace Server.Controllers;
 
 [Route("api/linear-system")]
 [ApiController]
+[EnableCors("CorsPolicy")]
 public class LinearSystemController : ControllerBase
 {
     [HttpPost("solve")]
-    public async Task<IActionResult> SolveLinearSystem(IFormFile file)
+    public IActionResult SolveLinearSystem(IFormFile file)
     {
         if (file is null || file.Length == 0)
         {
             return BadRequest();
         }
 
-        var linearSystem = await XmlHelper.ParseToLinearSystem(file);
+        var linearSystem = XmlHelper.ParseToLinearSystem(file);
 
         if (linearSystem is null)
         {
@@ -50,14 +50,14 @@ public class LinearSystemController : ControllerBase
 
     [HttpPost("solve/gauss")]
     [RequestSizeLimit(long.MaxValue)]
-    public async Task<IActionResult> SolveUsingGauss(IFormFile file)
+    public IActionResult SolveUsingGauss(IFormFile file)
     {
         if (file is null || file.Length == 0)
         {
             return BadRequest();
         }
 
-        var linearSystem = await XmlHelper.ParseToLinearSystem(file);
+        var linearSystem = XmlHelper.ParseToLinearSystem(file);
 
         if (linearSystem is null)
         {
@@ -72,14 +72,14 @@ public class LinearSystemController : ControllerBase
 
     [HttpPost("solve/cholesky")]
     [RequestSizeLimit(long.MaxValue)]
-    public async Task<IActionResult> SolveUsingCholesky(IFormFile file)
+    public IActionResult SolveUsingCholesky(IFormFile file)
     {
         if (file is null || file.Length == 0)
         {
             return BadRequest();
         }
 
-        var linearSystem = await XmlHelper.ParseToLinearSystem(file);
+        var linearSystem = XmlHelper.ParseToLinearSystem(file);
 
         if (linearSystem is null)
         {

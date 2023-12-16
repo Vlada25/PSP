@@ -10,42 +10,46 @@
                    Variant="Variant.Filled"
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.CloudUpload"
-                   Disabled=loading
+                   Disabled=@(isCholeskySolving || isGaussSolving)
                    for="@context">
             Upload File
         </MudButton>
     </ButtonTemplate>
 </MudFileUpload>
 
-@if (result is not null)
+<p></p>
+
+@if (currentFile is not null)
 {
-    <p></p>
-    @for (int i = 0; i < result.Constants.Count; i++)
-    {
-        for (int j = 0; j < result.Coefficients[i].Count; j++)
-        {
-            <span>@($"{result.Coefficients[i][j]} ")</span>
-        }
-
-        @("| " + result.Constants[i])
-        <br />
-    }
-
     <p class="mt-2">
-        <b>Cholesky result:</b> @result.CholeskyResult
+        <b>Cholesky result: </b> 
+        @if (isCholeskySolving)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
+        }
+        else
+        {
+            @choleskyResult
+        }
         <br>
-        <b>Gauss result:</b> @result.GaussResult
+        <b>Gauss result: </b>
+        @if (isGaussSolving)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
+        }
+        else
+        {
+            @gaussResult
+        }
     </p>
 }
 
-@if (loading)
-{
-    <MudText Class="mt-2">Loading...</MudText>
-}
-
 @code {
-    private LinearSystemResult? result;
-    private bool loading;
+    private string? choleskyResult;
+    private string? gaussResult;
+    private IBrowserFile? currentFile;
+    private bool isCholeskySolving;
+    private bool isGaussSolving;
 
     private async Task UploadFile(InputFileChangeEventArgs e)
     {
@@ -54,22 +58,41 @@
             return;
         }
 
+        currentFile = e.File;
+
+        isCholeskySolving = true;
+
         using (var content = new MultipartFormDataContent())
         {
             var contentType = e.File.ContentType;
             content.Add(new StreamContent(e.File.OpenReadStream()), "file", e.File.Name);
 
-            loading = true;
-            result = null;
-
-            var response = await httpClient.PostAsync("linear-system/solve", content);
-
-            loading = false;
+            var response = await httpClient.PostAsync("linear-system/solve/cholesky", content);
 
             if (response.IsSuccessStatusCode)
             {
-                result = await response.Content.ReadFromJsonAsync<LinearSystemResult>();
+                choleskyResult = await response.Content.ReadAsStringAsync();
             }
         }
+
+        isCholeskySolving = false;
+        isGaussSolving = true;
+        StateHasChanged();
+
+        using (var content = new MultipartFormDataContent())
+        {
+            var contentType = e.File.ContentType;
+            content.Add(new StreamContent(e.File.OpenReadStream()), "file", e.File.Name);
+
+            var response = await httpClient.PostAsync("linear-system/solve/gauss", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                gaussResult = await response.Content.ReadAsStringAsync();
+            }
+        }
+
+        isGaussSolving = false;
+        StateHasChanged();
     }
 }

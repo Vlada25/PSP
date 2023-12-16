@@ -1,21 +1,18 @@
 ﻿using Shared.Models;
-using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace Server;
 
 public static class XmlHelper
 {
-    public static async Task<LinearSystem> ParseToLinearSystem(IFormFile file)
+    public static LinearSystem ParseToLinearSystem(IFormFile file)
     {
-        string[]? coeffs = null;
-        string[]? constants = null;
-        LinearSystem linearSystem = new();
-        List<List<string>> initialCoeffs = new();
-        List<string> initialConstants = new();
+        LinearSystem linearSystem = new()
+        {
+            Coefficients = new List<List<double>>(),
+            Constants = new List<double>()
+        };
 
         try
         {
@@ -24,90 +21,48 @@ public static class XmlHelper
                 file.CopyTo(stream);
                 stream.Position = 0;
 
-                //using StreamReader sr = new(stream);
+                using StreamReader sr = new(stream);
 
-                //var line = sr.ReadLine();
-                //bool afterCoeffs = false;
-                //bool afterConstants = false;
-                //int coefsIndex = 0;
+                var line = sr.ReadLine();
+                bool afterCoeffs = false;
+                bool afterConstants = false;
+                int coefsIndex = 0;
 
-                //while (line is not null)
-                //{
-                //    //sb.Append(line);
-                //    if (line.Contains("</constants>"))
-                //    {
-                //        break;
-                //    }
-
-                //    if (afterCoeffs && !line.Contains("</coefficients>") && !line.Contains("<constants>"))
-                //    {
-                //        initialCoeffs.Add(new List<string>());
-                //        initialCoeffs[coefsIndex].AddRange(line.TrimStart().TrimEnd().Split(" "));
-                //        coefsIndex++;
-                //    }
-
-                //    if (afterConstants)
-                //    {
-                //        initialConstants.AddRange(line.TrimStart().TrimEnd().Split(" "));
-                //    }
-
-                //    if (line.Contains("<coefficients>"))
-                //    {
-                //        afterCoeffs = true;
-                //    }
-
-                //    if (line.Contains("<constants>"))
-                //    {
-                //        afterCoeffs = false;
-                //        afterConstants = true;
-                //    }
-
-                //    line = sr.ReadLine();
-                //}
-
-                var xmlDoc = new XmlDocument();
-                xmlDoc.Load(stream);
-
-                XmlElement? xRoot = xmlDoc.DocumentElement;
-
-                if (xRoot is not null)
+                while (line is not null)
                 {
-                    foreach (XmlElement xnode in xRoot)
+                    if (line.Contains("</constants>"))
                     {
-                        if (xnode.Name == "coefficients")
-                        {
-                            coeffs = xnode.InnerText.Replace("\r\n", "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        }
-
-                        if (xnode.Name == "constants")
-                        {
-                            constants = xnode.InnerText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        }
+                        break;
                     }
+
+                    if (afterCoeffs && !line.Contains("</coefficients>") && !line.Contains("<constants>"))
+                    {
+                        linearSystem.Coefficients.Add(new List<double>());
+                        linearSystem.Coefficients[coefsIndex].AddRange(line.TrimStart().TrimEnd().Split(" ").Select(c => double.Parse(c)));
+                        coefsIndex++;
+                    }
+
+                    if (afterConstants)
+                    {
+                        linearSystem.Coefficients[coefsIndex].Add(double.Parse(line.TrimStart().TrimEnd()));
+                        coefsIndex++;
+                    }
+
+                    if (line.Contains("<coefficients>"))
+                    {
+                        afterCoeffs = true;
+                    }
+
+                    if (line.Contains("<constants>"))
+                    {
+                        afterCoeffs = false;
+                        afterConstants = true;
+                        coefsIndex = 0;
+                    }
+
+                    line = sr.ReadLine();
                 }
             }
-
-            linearSystem.Coefficients = new List<List<double>>();
-            linearSystem.Constants = constants.Select(c => double.Parse(c)).ToList();
-
-            int index = 0;
-            for (int i = 0; i < constants.Length; i++)
-            {
-                linearSystem.Coefficients.Add(new List<double>());
-                for (int j = 0; j < constants.Length; j++)
-                {
-                    linearSystem.Coefficients[i].Add(double.Parse(coeffs[index]));
-                    index++;
-                }
-            }
-
-            //linearSystem.Coefficients = new List<List<double>>();
-            //linearSystem.Constants = initialConstants.Select(c => double.Parse(c)).ToList();
-
-            //foreach (var item in initialCoeffs)
-            //{
-            //    linearSystem.Coefficients.Add(new List<double>(item.Select(c => double.Parse(c)).ToList()));
-            //}
         }
         catch (Exception ex)
         {
@@ -172,12 +127,13 @@ public static class XmlHelper
 
     public static string GenerateXmlString(LinearSystem linearSystem)
     {
-        XmlDocument xmlDoc = new XmlDocument();
+        XmlDocument xmlDoc = new();
         XmlElement root = xmlDoc.CreateElement("system");
         xmlDoc.AppendChild(root);
 
         XmlElement coeffsElement = xmlDoc.CreateElement("coefficients");
         StringBuilder sb = new();
+        sb.Append(" \n");
 
         for (int i = 0; i < linearSystem.Constants.Count; i++)
         {
@@ -186,18 +142,20 @@ public static class XmlHelper
             {
                 sb.Append($"{linearSystem.Coefficients[i][j]} ");
             }
+            sb.Append(" \n");
         }
 
         coeffsElement.InnerText = sb.ToString();
         root.AppendChild(coeffsElement);
 
         XmlElement constElement = xmlDoc.CreateElement("constants");
-        constElement.InnerText = string.Join(' ', linearSystem.Constants);
+        constElement.InnerText = "\n" + string.Join(" \n", linearSystem.Constants) + "\n";
         root.AppendChild(constElement);
 
         StringWriter stringWriter = new();
         XmlTextWriter xmlTextWriter = new(stringWriter);
         xmlDoc.WriteTo(xmlTextWriter);
+
         string xmlString = stringWriter.ToString();
 
         return xmlString;

@@ -6,18 +6,17 @@ public static class LinearEquationSolver
 {
     public static double[] SolveUsingGauss(LinearSystem linearSystem)
     {
-        int size = linearSystem.Constants.Count();
-        var coefficients = GetCoeffs(linearSystem, size);
+        int size = linearSystem.Coefficients[0].Count - 1;
 
         for (int i = 0; i < size; i++)
         {
             for (int j = i + 1; j < size; j++)
             {
-                double ratio = coefficients[j][i] / coefficients[i][i];
+                double ratio = linearSystem.Coefficients[j][i] / linearSystem.Coefficients[i][i];
 
                 for (int k = 0; k <= size; k++)
                 {
-                    coefficients[j][k] -= ratio * coefficients[i][k];
+                    linearSystem.Coefficients[j][k] -= ratio * linearSystem.Coefficients[i][k];
                 }
             }
         }
@@ -25,11 +24,11 @@ public static class LinearEquationSolver
         double[] result = new double[size];
         for (int i = size - 1; i >= 0; i--)
         {
-            result[i] = coefficients[i][size] / coefficients[i][i];
+            result[i] = linearSystem.Coefficients[i][size] / linearSystem.Coefficients[i][i];
 
             for (int j = i - 1; j >= 0; j--)
             {
-                coefficients[j][size] -= coefficients[j][i] * result[i];
+                linearSystem.Coefficients[j][size] -= linearSystem.Coefficients[j][i] * result[i];
             }
         }
 
@@ -38,8 +37,7 @@ public static class LinearEquationSolver
 
     public static double[] SolveUsingCholesky(LinearSystem linearSystem)
     {
-        int size = linearSystem.Constants.Count();
-        var coefficients = GetCoeffs(linearSystem, size);
+        int size = linearSystem.Coefficients[0].Count - 1;
         double[,] lowerTriangular = CholeskyDecomposition(linearSystem.Coefficients, size);
 
         double[] y = new double[size];
@@ -50,7 +48,7 @@ public static class LinearEquationSolver
             {
                 sum += lowerTriangular[i, j] * y[j];
             }
-            y[i] = (coefficients[i][size] - sum) / lowerTriangular[i, i];
+            y[i] = (linearSystem.Coefficients[i][size] - sum) / lowerTriangular[i, i];
         }
 
         double[] result = new double[size];
@@ -105,24 +103,5 @@ public static class LinearEquationSolver
         }
 
         return lowerTriangular;
-    }
-
-    private static List<List<double>> GetCoeffs(LinearSystem linearSystem, int size)
-    {
-        List<List<double>> coefficients = new();
-
-        for (int i = 0; i < size; i++)
-        {
-            coefficients.Add(new List<double>());
-
-            for (int j = 0; j < size; j++)
-            {
-                coefficients[i].Add(linearSystem.Coefficients[i][j]);
-            }
-
-            coefficients[i].Add(linearSystem.Constants[i]);
-        }
-
-        return coefficients;
     }
 }
